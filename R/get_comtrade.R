@@ -1,6 +1,7 @@
 # Get data from Comtrade
 # Copied from https://comtrade.un.org/data/Doc/api/ex/r
 
+
 get_comtrade <- function(url="http://comtrade.un.org/api/get?"
                          ,maxrec=100000
                          ,type="C"

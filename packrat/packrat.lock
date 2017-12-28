@@ -3,6 +3,11 @@ PackratVersion: 0.4.8.1
 RVersion: 3.4.3
 Repos: CRAN=https://www.stats.bris.ac.uk/R/
 
+Package: jsonlite
+Source: CRAN
+Version: 1.5
+Hash: 9c51936d8dd00b2f1d4fe9d10499694c
+
 Package: packrat
 Source: CRAN
 Version: 0.4.8-1

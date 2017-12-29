@@ -1,0 +1,110 @@
+---
+title: "Untitled"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r globals, include=FALSE}
+library(flexdashboard)
+library(here)
+library(dplyr)
+
+source(here("R", "get_comtrade.R"))
+source(here("R", "utils.R"))
+
+reporters <- read.csv(here("data", "reporters.csv"), stringsAsFactors = FALSE, header = TRUE)
+partners <- read.csv(here("data", "partners.csv"), stringsAsFactors = FALSE, header = TRUE)
+hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = FALSE, header = TRUE)
+flows <- read.csv(here("data", "flows.csv"), stringsAsFactors = FALSE, header = TRUE)
+
+reporterlist <- split(reporters$id, reporters$name)
+partnerlist <- split(partners$id, partners$name)
+hscodelist <- split(hscodes$id, hscodes$text)
+flowlist <- split(flows$id, flows$text)
+yearlist <- c(1990:2016)
+
+```
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+### Inputs
+
+```{r}
+selectInput("year", label = "Year", choices = yearlist, selected = 2014)
+selectInput("reporter", label = "Country", choices = reporterlist, selected = "156")
+selectInput("partner", label = "Partner", choices = partnerlist, selected = "all")
+selectInput("flow", label = "Trade Flow", choices = flowlist, selected = "1")
+selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220830")
+
+renderText({ paste(input$year, input$reporter, input$partner, input$flow, input$hscode ) })
+
+comtradedata <- reactive({
+    apidata <- get_comtrade(freq = "A",
+                     ps = input$year,
+                     r = input$reporter,
+                     p = input$partner,
+                     rg = input$flow,
+                     cc = input$hscode,
+                     fmt = "csv"
+                     )
+    
+  apidata <- apidata$data
+  colnames(apidata) <- dbSafeNames(colnames(apidata))  
+  apidata <- apidata %>% 
+              select(classification, 
+                     year, 
+                     trade_flow,
+                     reporter,
+                     partner,
+                     commodity_code,
+                     commodity,
+                     netweight_kg = netweight_kg_,
+                     trade_value_us = trade_value_us_)
+  
+  apidata
+  
+})
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+renderText({
+  
+  all_imports <- comtradedata() %>% 
+                  filter(partner == "World") %>% 
+                  select(trade_value_us)
+  
+  uk_imports <- comtradedata() %>% 
+                  filter(partner == "United Kingdom") %>% 
+                  select(trade_value_us)
+                  
+  paste("Total imports:", all_imports, "UK imports:", uk_imports, "UK market share", uk_imports/all_imports)
+  
+})
+
+
+```
+
+### Chart C
+
+```{r}
+
+renderTable({
+  
+  comtradedata()
+  
+})
+
+```
+
+

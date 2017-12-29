@@ -13,6 +13,7 @@ get_comtrade <- function(url="http://comtrade.un.org/api/get?"
                          ,rg="all"
                          ,cc="TOTAL"
                          ,fmt="json"
+#                         ,head = "M"
 )
 {
   string<- paste(url
@@ -26,6 +27,7 @@ get_comtrade <- function(url="http://comtrade.un.org/api/get?"
                  ,"rg=",rg,"&" #trade flow
                  ,"cc=",cc,"&" #classification code
                  ,"fmt=",fmt        #Format
+ #                ,"head=", head
                  ,sep = ""
   )
   

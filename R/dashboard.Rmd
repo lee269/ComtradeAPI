@@ -11,6 +11,7 @@ runtime: shiny
 library(flexdashboard)
 library(here)
 library(dplyr)
+library(ggplot2)
 
 source(here("R", "get_comtrade.R"))
 source(here("R", "utils.R"))
@@ -40,10 +41,17 @@ selectInput("partner", label = "Partner", choices = partnerlist, selected = "all
 selectInput("flow", label = "Trade Flow", choices = flowlist, selected = "1")
 selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220830")
 
-renderText({ paste(input$year, input$reporter, input$partner, input$flow, input$hscode ) })
+selectInput("hscode1", label = "Commodity", choices = hscodelist, selected = "220830", multiple = TRUE)
+
+renderText({ paste(input$year, input$reporter, input$partner, input$flow, input$hscode) })
+renderText({ paste(input$hscode1) })
+
 
 comtradedata <- reactive({
-    apidata <- get_comtrade(freq = "A",
+
+  withProgress(message = "Requesting Comtrade data...", detail = "This may take a while", value = NULL, {
+  
+      apidata <- get_comtrade(freq = "A",
                      ps = input$year,
                      r = input$reporter,
                      p = input$partner,
@@ -66,7 +74,7 @@ comtradedata <- reactive({
                      trade_value_us = trade_value_us_)
   
   apidata
-  
+  })
 })
 
 ```
@@ -78,17 +86,31 @@ Column {data-width=350}
 
 ```{r}
 
-renderText({
+renderPlot({
   
   all_imports <- comtradedata() %>% 
                   filter(partner == "World") %>% 
-                  select(trade_value_us)
+                  select(trade_value_us) %>% 
+                  as.numeric()
   
   uk_imports <- comtradedata() %>% 
                   filter(partner == "United Kingdom") %>% 
-                  select(trade_value_us)
-                  
-  paste("Total imports:", all_imports, "UK imports:", uk_imports, "UK market share", uk_imports/all_imports)
+                  select(trade_value_us) %>% 
+                  as.numeric()
+ 
+  mktshare <- comtradedata() %>% 
+            filter(partner != "World") %>% 
+            mutate(mktshare = (trade_value_us/all_imports) * 100) %>% 
+            arrange(desc(mktshare))
+
+cht <- ggplot(mktshare, aes(x = year, y = mktshare, fill = partner)) +
+        scale_x_discrete() +
+        geom_bar(stat = "identity") +
+        ggtitle(paste("Total imports:", all_imports, "UK imports:", uk_imports, "UK market share", sprintf("%.3f %%", (uk_imports/all_imports)*100)))
+
+cht
+                   
+#  paste("Total imports:", all_imports, "UK imports:", uk_imports, "UK market share", uk_imports/all_imports)
   
 })
 

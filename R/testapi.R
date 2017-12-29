@@ -1,5 +1,6 @@
 library(here)
 library(dplyr)
+library(ggplot2)
 
 source(here("R", "get_comtrade.R"))
 source(here("R", "utils.R"))
@@ -40,3 +41,19 @@ test1 <- test %>%
                commodity,
                netweight_kg = netweight_kg_,
                trade_value_us = trade_value_us_)
+
+world <- test1 %>% 
+          filter(partner == "World") %>% 
+          select(trade_value_us) %>% 
+          as.numeric()
+
+mktshare <- test1 %>% 
+            filter(partner != "World") %>% 
+            mutate(mktshare = (trade_value_us/world) * 100) %>% 
+            arrange(desc(mktshare))
+
+cht <- ggplot(mktshare, aes(x = year, y = mktshare, fill = partner)) +
+        geom_bar(stat = "identity") +
+        scale_x_discrete(year)
+
+cht

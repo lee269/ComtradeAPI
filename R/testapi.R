@@ -7,9 +7,10 @@ source(here("R", "utils.R"))
 
 reporters <- read.csv(here("data", "reporters.csv"), stringsAsFactors = TRUE, header = TRUE)
 partners <- read.csv(here("data", "partners.csv"), stringsAsFactors = TRUE, header = TRUE)
-hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = TRUE, header = TRUE)
+hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = FALSE, header = TRUE)
 
-
+hscodes <- hscodes %>% 
+          filter(nchar(id) == 4)
 
 
 year <- 2014

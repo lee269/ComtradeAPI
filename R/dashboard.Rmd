@@ -2,7 +2,7 @@
 title: "Untitled"
 output: 
   flexdashboard::flex_dashboard:
-    orientation: columns
+    orientation: rows
     vertical_layout: fill
 runtime: shiny
 ---
@@ -20,6 +20,9 @@ reporters <- read.csv(here("data", "reporters.csv"), stringsAsFactors = FALSE, h
 partners <- read.csv(here("data", "partners.csv"), stringsAsFactors = FALSE, header = TRUE)
 hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = FALSE, header = TRUE)
 flows <- read.csv(here("data", "flows.csv"), stringsAsFactors = FALSE, header = TRUE)
+
+hscodes <- hscodes %>% 
+          filter(nchar(id) == 4)
 
 reporterlist <- split(reporters$id, reporters$name)
 partnerlist <- split(partners$id, partners$name)
@@ -77,9 +80,70 @@ comtradedata <- reactive({
   })
 })
 
+  all_imports <- reactive({ 
+      retdata <-  comtradedata() %>% 
+                  filter(partner == "World") %>% 
+                  select(trade_value_us) %>% 
+                  as.numeric()
+  retdata
+  })    
+      
+  uk_imports <- reactive({
+    retdata <- comtradedata() %>% 
+                  filter(partner == "United Kingdom") %>% 
+                  select(trade_value_us) %>% 
+                  as.numeric()
+ 
+    retdata
+  })
+    
+  mktshare <- reactive({
+    retdata <- comtradedata() %>% 
+            filter(partner != "World") %>% 
+            mutate(mktshare = (trade_value_us/all_imports()) * 100) %>% 
+            arrange(desc(mktshare))
+
+   retdata
+   
+  })
+
+
+
+
+
 ```
 
-Column {data-width=350}
+Row
+-----------------------------------------------------------------------
+
+### Market Share
+
+```{r}
+
+renderGauge({
+  
+  share <- format((uk_imports()/all_imports()) * 100, nsmall = 2, digits = 2)
+  gauge(value = share, min = 0, max = 100, symbol = "%",label = "UK Market Share")
+  
+})
+
+```
+
+### UK Exports
+
+```{r}
+
+renderGauge({
+  
+  gauge(value = uk_imports(), min = 0, max = uk_imports(), symbol = "$",label = "UK Market Share")
+  
+})
+
+```
+
+
+
+Row {.tabset}
 -----------------------------------------------------------------------
 
 ### Chart B
@@ -88,25 +152,28 @@ Column {data-width=350}
 
 renderPlot({
   
-  all_imports <- comtradedata() %>% 
-                  filter(partner == "World") %>% 
-                  select(trade_value_us) %>% 
-                  as.numeric()
+  # all_imports <- comtradedata() %>% 
+  #                 filter(partner == "World") %>% 
+  #                 select(trade_value_us) %>% 
+  #                 as.numeric()
+  # 
+  # uk_imports <- comtradedata() %>% 
+  #                 filter(partner == "United Kingdom") %>% 
+  #                 select(trade_value_us) %>% 
+  #                 as.numeric()
+  # 
+  # mktshare <- comtradedata() %>% 
+  #           filter(partner != "World") %>% 
+  #           mutate(mktshare = (trade_value_us/all_imports) * 100) %>% 
+  #           arrange(desc(mktshare))
   
-  uk_imports <- comtradedata() %>% 
-                  filter(partner == "United Kingdom") %>% 
-                  select(trade_value_us) %>% 
-                  as.numeric()
- 
-  mktshare <- comtradedata() %>% 
-            filter(partner != "World") %>% 
-            mutate(mktshare = (trade_value_us/all_imports) * 100) %>% 
-            arrange(desc(mktshare))
+  ai <- all_imports()
+  uki <- uk_imports()
 
-cht <- ggplot(mktshare, aes(x = year, y = mktshare, fill = partner)) +
+cht <- ggplot(mktshare(), aes(x = year, y = mktshare, fill = partner)) +
         scale_x_discrete() +
         geom_bar(stat = "identity") +
-        ggtitle(paste("Total imports:", all_imports, "UK imports:", uk_imports, "UK market share", sprintf("%.3f %%", (uk_imports/all_imports)*100)))
+         ggtitle(paste("Total imports:", all_imports(), "UK imports:", uk_imports(), "UK market share", sprintf("%.3f %%", (uk_imports()/all_imports())*100)))
 
 cht
                    

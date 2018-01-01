@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Comtrade dashboard"
 output: 
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -7,23 +7,32 @@ output:
 runtime: shiny
 ---
 
-```{r globals, include=FALSE}
+```{r global, include=FALSE}
 library(flexdashboard)
 library(here)
 library(dplyr)
 library(ggplot2)
+library(networkD3)
 
+# load up helper functions
 source(here("R", "get_comtrade.R"))
 source(here("R", "utils.R"))
 
+# read in reference datasets
 reporters <- read.csv(here("data", "reporters.csv"), stringsAsFactors = FALSE, header = TRUE)
 partners <- read.csv(here("data", "partners.csv"), stringsAsFactors = FALSE, header = TRUE)
 hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = FALSE, header = TRUE)
 flows <- read.csv(here("data", "flows.csv"), stringsAsFactors = FALSE, header = TRUE)
 
-hscodes <- hscodes %>% 
-          filter(nchar(id) == 4)
+# region data from https://unstats.un.org/unsd/methodology/m49/overview/
+regions <- read.csv(here("data", "UNSDregions.csv"), stringsAsFactors = FALSE, header = TRUE)
+colnames(regions) <- dbSafeNames(colnames(regions))
 
+# optional - restrict to 4 digit comcode
+# hscodes <- hscodes %>% 
+#           filter(nchar(id) == 4)
+
+# set up reference data into list format required by selectInput boxes
 reporterlist <- split(reporters$id, reporters$name)
 partnerlist <- split(partners$id, partners$name)
 hscodelist <- split(hscodes$id, hscodes$text)
@@ -38,16 +47,20 @@ Inputs {.sidebar}
 ### Inputs
 
 ```{r}
+
+# set up input boxes
 selectInput("year", label = "Year", choices = yearlist, selected = 2014)
 selectInput("reporter", label = "Country", choices = reporterlist, selected = "156")
 selectInput("partner", label = "Partner", choices = partnerlist, selected = "all")
 selectInput("flow", label = "Trade Flow", choices = flowlist, selected = "1")
 selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220830")
 
+# experimental multi select - can this be implemented with the comtrade api?
 selectInput("hscode1", label = "Commodity", choices = hscodelist, selected = "220830", multiple = TRUE)
 
-renderText({ paste(input$year, input$reporter, input$partner, input$flow, input$hscode) })
-renderText({ paste(input$hscode1) })
+# just a readout of the api params - either remove or turn into a proper  api call url
+renderText( {paste(input$year, input$reporter, input$partner, input$flow, input$hscode) })
+renderText( {paste(input$hscode1) })
 
 
 comtradedata <- reactive({
@@ -70,7 +83,9 @@ comtradedata <- reactive({
                      year, 
                      trade_flow,
                      reporter,
+                     reporter_iso,
                      partner,
+                     partner_iso,
                      commodity_code,
                      commodity,
                      netweight_kg = netweight_kg_,
@@ -109,12 +124,23 @@ comtradedata <- reactive({
 
 
 
-
-
 ```
 
 Row
 -----------------------------------------------------------------------
+
+### Size of Market
+
+```{r}
+
+renderValueBox({
+  
+  valueBox(value = all_imports(), caption = paste(input$reporter, "import market size"), icon = "fa-usd")
+  
+})
+
+```
+
 
 ### Market Share
 
@@ -146,7 +172,7 @@ renderGauge({
 Row {.tabset}
 -----------------------------------------------------------------------
 
-### Chart B
+### Market share chart
 
 ```{r}
 
@@ -184,7 +210,7 @@ cht
 
 ```
 
-### Chart C
+### Raw Data
 
 ```{r}
 
@@ -196,4 +222,44 @@ renderTable({
 
 ```
 
+### Sankey
 
+```{r}
+
+renderSankeyNetwork({
+  
+  
+  sankey <- comtradedata() %>% 
+          filter(partner_iso != "WLD") %>% 
+          select(reporter_iso,
+                 partner_iso,
+                 trade_value_us) %>% 
+          arrange(desc(trade_value_us))
+  
+  sankey <- sankey %>% 
+            mutate(source = 0, target = seq.int(nrow(sankey)), value = trade_value_us)
+
+  
+r <- reporters %>% 
+      filter(id == input$reporter) %>% 
+      select(name) %>% 
+      as.character()
+
+nodes <- as.vector(sankey$partner_iso)
+nodes <- append(r, nodes)
+nodes <- data.frame("name" = nodes)
+
+links <- sankey %>% 
+        select(source, target, value) 
+
+x <- sankeyNetwork(Links = links, Nodes = nodes,
+              Source = "target", Target = "source",
+              Value = "value", NodeID = "name",
+              fontSize= 12, nodeWidth = 30)
+  
+x
+
+})
+
+
+```

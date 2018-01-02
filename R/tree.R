@@ -19,7 +19,7 @@ year <- 2014
 reporter <- "156" # China
 partner <- "all"
 flow <- "1" #imports
-comcode <- "220830"
+comcode <- "0403"
 
 
 test <- get_comtrade(freq = "A",
@@ -62,7 +62,7 @@ test2 <- test1 %>%
          # partner_iso,
          Global.Name,
          Region.Name,
-         Sub.region.Name,
+         # Sub.region.Name,
          trade_value_us)
 
 
@@ -88,17 +88,38 @@ print(tradenet,  "trade_value_us")
 tradenetdf <- ToDataFrameNetwork(tradenet, "trade_value_us")
 
 simpleNetwork(tradenetdf, fontSize = 12)
-treeNet
 
-tnet <- graph_from_data_frame(tradenetdf)
+sources <- tradenetdf %>%
+            distinct(from) %>% 
+            rename(label = from)
 
-plot(tnet)
+destinations <- tradenetdf %>% 
+            distinct(to) %>% 
+            rename(label = to)
 
-v <- as_data_frame(tnet, what = "vertices")
-e <- as_data_frame(tnet, what = "edges")
+nodes <- full_join(sources, destinations, by = "label") 
+nodes <- nodes %>% 
+          mutate(id = 0:(nrow(nodes) - 1)) %>% 
+          select(id, everything())
+
+edges <- tradenetdf %>% 
+          rename(source = from, destination = to) %>% 
+          left_join(nodes, by = c("source" = "label")) %>% 
+          rename(from = id)
+
+edges <- edges %>% 
+  left_join(nodes, by = c("destination" = "label")) %>% 
+  rename(to = id) %>% 
+  select(from, to, trade_value_us)
+
+nodes <- nodes %>% 
+          mutate(label = gsub(label, pattern = "World", replacement = "China"))
 
 
-sankeyNetwork(Links = e, Nodes = v, Source = "from", Target = "to", Value = "trade_value_us", NodeID = "name")
+
+
+
+sankeyNetwork(Links = edges, Nodes = nodes, Source = "from", Target = "to", Value = "trade_value_us", NodeID = "label", fontSize = 12)
 
 
 

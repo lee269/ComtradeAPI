@@ -13,6 +13,7 @@ library(here)
 library(dplyr)
 library(ggplot2)
 library(networkD3)
+library(data.tree)
 
 # load up helper functions
 source(here("R", "get_comtrade.R"))
@@ -30,8 +31,8 @@ regions <- read.csv(here("data", "UNSDregions.csv"), stringsAsFactors = FALSE, h
 colnames(regions) <- dbSafeNames(colnames(regions))
 
 # optional - restrict to 4 digit comcode
-hscodes <- hscodes %>%
-          filter(nchar(id) == 4)
+# hscodes <- hscodes %>%
+#           filter(nchar(id) == 4)
 
 # set up reference data into list format required by selectInput boxes
 reporterlist <- split(reporters$id, reporters$name)
@@ -260,7 +261,7 @@ renderSankeyNetwork({
   #   
   # x
 
-  x <- make_sankey(comtradedata())
+  x <- make_region_sankey(comtradedata(), regiondata = regions)
   x
   
   

@@ -19,7 +19,7 @@ year <- 2014
 reporter <- "156" # China
 partner <- "all"
 flow <- "1" #imports
-comcode <- "0403"
+comcode <- "220830"
 
 
 test <- get_comtrade(freq = "A",
@@ -29,7 +29,7 @@ test <- get_comtrade(freq = "A",
                      rg = flow,
                      cc = comcode,
                      fmt = "csv"
-)
+                     )
 
 test <- test$data
 colnames(test) <- dbSafeNames(colnames(test))

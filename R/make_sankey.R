@@ -40,4 +40,73 @@ make_sankey <- function (comtradedata) {
     
     x
 
-}    
+}  
+
+
+make_region_sankey <- function(comtradedata, regiondata) {
+  require(data.tree)
+  require(dplyr)
+  require(networkD3)
+  
+  colnames(regiondata) <- dbSafeNames(colnames(regiondata))
+  
+  
+  comtradedata <- comtradedata %>% 
+    left_join(regiondata, by = c("partner_iso" = "iso_alpha3_code")) %>% 
+    select(reporter,
+           # reporter_iso,
+           partner, 
+           # partner_iso,
+           global_name,
+           region_name,
+           # Sub.region.Name,
+           trade_value_us)
+  
+  
+  colnames(comtradedata) <- dbSafeNames(colnames(comtradedata))
+  
+  reportercountry <- as.character(comtradedata$reporter[1])
+  
+  trade <- comtradedata %>% 
+    filter(partner != "World")
+  
+  trade$pathString <- paste(trade$global_name, trade$region_name, trade$sub_region_name, trade$partner, sep = "/")
+  
+  tradenet <- as.Node(trade)
+  
+  tradenet$Do(function(node) node$trade_value_us <- Aggregate(node, attribute = "trade_value_us", aggFun = sum), traversal = "post-order")
+  
+  tradenetdf <- ToDataFrameNetwork(tradenet, "trade_value_us")
+  
+  sources <- tradenetdf %>%
+    distinct(from) %>% 
+    rename(label = from)
+  
+  destinations <- tradenetdf %>% 
+    distinct(to) %>% 
+    rename(label = to)
+  
+  nodes <- full_join(sources, destinations, by = "label") 
+  nodes <- nodes %>% 
+    mutate(id = 0:(nrow(nodes) - 1)) %>% 
+    select(id, everything())
+  
+  edges <- tradenetdf %>% 
+    rename(source = from, destination = to) %>% 
+    left_join(nodes, by = c("source" = "label")) %>% 
+    rename(from = id)
+  
+  edges <- edges %>% 
+    left_join(nodes, by = c("destination" = "label")) %>% 
+    rename(to = id) %>% 
+    select(from, to, trade_value_us)
+  
+  nodes <- nodes %>% 
+    mutate(label = gsub(label, pattern = "World", replacement = reportercountry))
+  
+  x <- sankeyNetwork(Links = edges, Nodes = nodes, Source = "from", Target = "to", Value = "trade_value_us", NodeID = "label", fontSize = 12)
+  
+  x
+  
+}
+

@@ -1,3 +1,4 @@
+library(jsonlite)
 library(here)
 library(dplyr)
 library(ggplot2)
@@ -5,14 +6,13 @@ library(networkD3)
 
 source(here("R", "get_comtrade.R"))
 source(here("R", "utils.R"))
+source(here("R", "make_sankey.R"))
+
 
 reporters <- read.csv(here("data", "reporters.csv"), stringsAsFactors = FALSE, header = TRUE)
 partners <- read.csv(here("data", "partners.csv"), stringsAsFactors = FALSE, header = TRUE)
 hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = FALSE, header = TRUE)
-
-hscodes <- hscodes %>% 
-          filter(nchar(id) == 4)
-
+regions <- read.csv(here("data", "UNSDregions.csv"), stringsAsFactors = FALSE, header = TRUE)
 
 year <- 2014
 reporter <- "156" # China
@@ -33,50 +33,43 @@ test <- get_comtrade(freq = "A",
 test <- test$data
 colnames(test) <- dbSafeNames(colnames(test))
 
+test <- test %>% 
+  select(classification, 
+         year, 
+         trade_flow,
+         reporter,
+         reporter_iso,
+         partner,
+         partner_iso,
+         commodity_code,
+         commodity,
+         netweight_kg = netweight_kg_,
+         trade_value_us = trade_value_us_)
+
+
+
+make_sankey(comtradedata = test)
+
+
 test1 <- test %>% 
-        select(classification, 
-               year, 
-               trade_flow,
-               reporter,
-               partner,
-               commodity_code,
-               commodity,
-               netweight_kg = netweight_kg_,
-               trade_value_us = trade_value_us_)
-
-world <- test1 %>% 
-          filter(partner == "World") %>% 
-          select(trade_value_us) %>% 
-          as.numeric()
-
-mktshare <- test1 %>% 
-            filter(partner != "World") %>% 
-            mutate(mktshare = (trade_value_us/world) * 100) %>% 
-            arrange(desc(mktshare))
-
-cht <- ggplot(mktshare, aes(x = year, y = mktshare, fill = partner)) +
-        geom_bar(stat = "identity") +
-        scale_x_discrete(year)
-
-cht
-
-
-sankey <- test %>% 
-          filter(partner_iso != "WLD") %>% 
-          select(reporter_iso,
+          select(reporter,
+                 reporter_iso,
+                 partner, 
                  partner_iso,
-                 trade_value_us = trade_value_us_) %>% 
-          arrange(desc(trade_value_us)) %>% 
-          mutate(source = 0, target =seq.int(nrow(sankey)), value = trade_value_us)
+                 trade_value_us)
 
-nodes <- as.vector(sankey$partner_iso)
-nodes <- append("CHN", nodes)
-nodes <- data.frame("name" = nodes)
+test2 <- test1 %>% 
+          left_join(regions, by = c("reporter_iso" = "ISO.alpha3.Code")) %>% 
+          select(reporter,
+                 # reporter_iso,
+                 partner, 
+                 # partner_iso,
+                 Region.Name,  
+                 trade_value_us)
 
-links <- sankey %>% 
-        select(source, target, value) 
+g <- graph.data.frame(test2)
 
-sankeyNetwork(Links = links, Nodes = nodes,
-              Source = "target", Target = "source",
-              Value = "value", NodeID = "name",
-              fontSize= 12, nodeWidth = 30)
+plot(g)
+
+v <- as_data_frame(g, what = "vertices")
+e <- as_data_frame(g, what = "edges")

@@ -17,6 +17,7 @@ library(networkD3)
 # load up helper functions
 source(here("R", "get_comtrade.R"))
 source(here("R", "utils.R"))
+source(here("R", "make_sankey.R"))
 
 # read in reference datasets
 reporters <- read.csv(here("data", "reporters.csv"), stringsAsFactors = FALSE, header = TRUE)
@@ -29,8 +30,8 @@ regions <- read.csv(here("data", "UNSDregions.csv"), stringsAsFactors = FALSE, h
 colnames(regions) <- dbSafeNames(colnames(regions))
 
 # optional - restrict to 4 digit comcode
-# hscodes <- hscodes %>% 
-#           filter(nchar(id) == 4)
+hscodes <- hscodes %>%
+          filter(nchar(id) == 4)
 
 # set up reference data into list format required by selectInput boxes
 reporterlist <- split(reporters$id, reporters$name)
@@ -229,36 +230,40 @@ renderTable({
 renderSankeyNetwork({
   
   
-  sankey <- comtradedata() %>% 
-          filter(partner_iso != "WLD") %>% 
-          select(reporter_iso,
-                 partner_iso,
-                 trade_value_us) %>% 
-          arrange(desc(trade_value_us))
+  #   sankey <- comtradedata() %>% 
+  #           filter(partner_iso != "WLD") %>% 
+  #           select(reporter_iso,
+  #                  partner_iso,
+  #                  trade_value_us) %>% 
+  #           arrange(desc(trade_value_us))
+  #   
+  #   sankey <- sankey %>% 
+  #             mutate(source = 0, target = seq.int(nrow(sankey)), value = trade_value_us)
+  # 
+  #   
+  # r <- reporters %>% 
+  #       filter(id == input$reporter) %>% 
+  #       select(name) %>% 
+  #       as.character()
+  # 
+  # nodes <- as.vector(sankey$partner_iso)
+  # nodes <- append(r, nodes)
+  # nodes <- data.frame("name" = nodes)
+  # 
+  # links <- sankey %>% 
+  #         select(source, target, value) 
+  # 
+  # x <- sankeyNetwork(Links = links, Nodes = nodes,
+  #               Source = "target", Target = "source",
+  #               Value = "value", NodeID = "name",
+  #               fontSize= 12, nodeWidth = 30)
+  #   
+  # x
+
+  x <- make_sankey(comtradedata())
+  x
   
-  sankey <- sankey %>% 
-            mutate(source = 0, target = seq.int(nrow(sankey)), value = trade_value_us)
-
   
-r <- reporters %>% 
-      filter(id == input$reporter) %>% 
-      select(name) %>% 
-      as.character()
-
-nodes <- as.vector(sankey$partner_iso)
-nodes <- append(r, nodes)
-nodes <- data.frame("name" = nodes)
-
-links <- sankey %>% 
-        select(source, target, value) 
-
-x <- sankeyNetwork(Links = links, Nodes = nodes,
-              Source = "target", Target = "source",
-              Value = "value", NodeID = "name",
-              fontSize= 12, nodeWidth = 30)
-  
-x
-
 })
 
 

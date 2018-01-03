@@ -14,6 +14,9 @@ source(here("R", "make_sankey.R"))
 # partners <- read.csv(here("data", "partners.csv"), stringsAsFactors = FALSE, header = TRUE)
 # hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = FALSE, header = TRUE)
 regions <- read.csv(here("data", "UNSDregions.csv"), stringsAsFactors = FALSE, header = TRUE)
+colnames(regions) <- dbSafeNames(colnames(regions))
+
+
 
 year <- 2014
 reporter <- "156" # China
@@ -55,13 +58,13 @@ test1 <- test %>%
          trade_value_us)
 
 test2 <- test1 %>% 
-  left_join(regions, by = c("partner_iso" = "ISO.alpha3.Code")) %>% 
+  left_join(regions, by = c("partner_iso" = "iso_alpha3_code")) %>% 
   select(reporter,
          # reporter_iso,
          partner, 
          # partner_iso,
-         Global.Name,
-         Region.Name,
+         global_name,
+         region_name,
          # Sub.region.Name,
          trade_value_us)
 
@@ -102,6 +105,7 @@ nodes <- nodes %>%
           mutate(id = 0:(nrow(nodes) - 1)) %>% 
           select(id, everything())
 
+
 edges <- tradenetdf %>% 
           rename(source = from, destination = to) %>% 
           left_join(nodes, by = c("source" = "label")) %>% 
@@ -121,7 +125,7 @@ nodes <- nodes %>%
 
 sankeyNetwork(Links = edges, Nodes = nodes, Source = "from", Target = "to", Value = "trade_value_us", NodeID = "label", fontSize = 12)
 
-
+make_region_sankey(comtradedata = test, regiondata = regions)
 
 
 

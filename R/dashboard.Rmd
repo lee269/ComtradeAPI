@@ -60,7 +60,7 @@ selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220
 # experimental multi select - can this be implemented with the comtrade api?
 selectInput("hscode1", label = "Commodity", choices = hscodelist, selected = "220830", multiple = TRUE)
 
-# just a readout of the api params - either remove or turn into a proper  api call url
+# just a readout of the api params - either remove or turn into a proper api call url for user reference
 renderText( {paste(input$year, input$reporter, input$partner, input$flow, input$hscode) })
 renderText( {paste(input$hscode1) })
 

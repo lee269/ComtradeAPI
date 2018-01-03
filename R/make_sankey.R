@@ -48,7 +48,21 @@ make_region_sankey <- function(comtradedata, regiondata) {
   require(dplyr)
   require(networkD3)
   
+  # uses the example here
+  # http://www.sthda.com/english/articles/33-social-network-analysis/135-network-visualization-essentials-in-r/
+  
   colnames(regiondata) <- dbSafeNames(colnames(regiondata))
+  
+  flow <- as.character(comtradedata$trade_flow[1])
+  if (flow == "Import") {
+    source = "to"
+    target = "from"
+  }
+  
+  if (flow == "Export") {
+    source = "from"
+    target = "to"
+  }
   
   
   comtradedata <- comtradedata %>% 
@@ -104,7 +118,8 @@ make_region_sankey <- function(comtradedata, regiondata) {
   nodes <- nodes %>% 
     mutate(label = gsub(label, pattern = "World", replacement = reportercountry))
   
-  x <- sankeyNetwork(Links = edges, Nodes = nodes, Source = "from", Target = "to", Value = "trade_value_us", NodeID = "label", fontSize = 12)
+  
+  x <- sankeyNetwork(Links = edges, Nodes = nodes, Source = source, Target = target, Value = "trade_value_us", NodeID = "label", fontSize = 12)
   
   x
   

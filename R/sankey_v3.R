@@ -5,6 +5,7 @@ library(ggplot2)
 library(networkD3)
 library(data.tree)
 library(igraph)
+library(stringr)
 
 source(here("R", "get_comtrade.R"))
 source(here("R", "utils.R"))
@@ -22,7 +23,7 @@ year <- 2014
 reporter <- "826" # "156" # China
 partner <- "all"
 flow <- "all" #imports
-comcode <- "0406"
+comcode <- "220830"
 
 
 comtradedata <- get_comtrade(freq = "A",
@@ -64,6 +65,47 @@ exports <- temp %>%
 
 tradenetdf <- imports %>%  
   bind_rows(exports)
+
+#  trying https://stackoverflow.com/questions/47809202/data-preparation-for-sankey-data-in-r-to-get-flow-frequency
+links <- tradenetdf %>% 
+          mutate("source" = paste(from, trade_flow, sep = "_")) %>% 
+          group_by(to) %>% 
+          mutate("target" = paste(to, trade_flow, sep = "_")) %>% 
+          ungroup() %>% 
+          # mutate(source = str_replace(source, pattern = "Barbados_Export", replacement = "Barbados")) %>% 
+          # mutate(target = str_replace(source, pattern = "Barbados_Import", replacement = "Barbados")) %>%
+          select(source, target, trade_value_us)
+          
+node_names <- factor(sort(unique(c(as.character(links$source), 
+                                   as.character(links$target)))))
+nodes <- data.frame(name = node_names)
+
+links <- data.frame(source = match(links$source, node_names) - 1, 
+                    target = match(links$target, node_names) - 1,
+                    value = links$trade_value_us)
+
+sankeyNetwork(links, nodes, "source", "target", "value", "name")
+
+  dat <- data.frame(customer = c(rep(c(1, 2), each=3), 3, 3),
+                    holiday_loc = c("SA", "SA", "AB", "SA", "SA", "SA", "AB", "AB"),
+                    holiday_num = c(1, 2, 3, 1, 2, 3, 1, 2))
+
+
+  links <- 
+    dat %>% 
+    mutate("source" = paste(holiday_loc, holiday_num, sep = "_")) %>% 
+    group_by(customer) %>% 
+    arrange(holiday_num) %>% 
+    mutate("target" =  lead(source)) %>% 
+    ungroup() %>% 
+    arrange(customer) %>% 
+    filter(!is.na(target)) %>% 
+    select(source, target)
+
+
+
+
+
 
 
 sources <- tradenetdf %>%

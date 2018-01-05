@@ -73,3 +73,20 @@ plot(g)
 
 v <- as_data_frame(g, what = "vertices")
 e <- as_data_frame(g, what = "edges")
+
+
+world <- map_data("world")
+world <- world[world$region != "Antarctica",] # intercourse antarctica
+world <- fortify(world)
+
+test <- test %>% 
+        mutate_if(is.factor, as.character)
+
+gg <- ggplot()
+gg <- gg + geom_map(data=world, map=world,
+                    aes(x=long, y=lat, map_id=region),
+                    color="white", fill="#7f7f7f", size=0.05, alpha=1/4)
+
+gg <- gg + geom_map(data=test, map = world, 
+                      aes(fill = trade_value_us_, map_id = partner), 
+                      size=0.15, alpha=1/100)

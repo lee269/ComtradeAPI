@@ -14,6 +14,7 @@ library(dplyr)
 library(ggplot2)
 library(networkD3)
 library(data.tree)
+library(DT)
 
 # load up helper functions
 source(here("R", "get_comtrade.R"))
@@ -269,3 +270,42 @@ renderSankeyNetwork({
 
 
 ```
+
+### Map?
+
+``` {r}
+
+world <- map_data("world")
+world <- world[world$region != "Antarctica",] # intercourse antarctica
+
+```
+
+### DataTable
+
+``` {r}
+
+renderDataTable({
+
+dat <- data.frame(
+  country = c('USA', 'China'),
+  # flag = c('<img src="test.png" height="25"></img>',
+  #          '<img src="http://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Flag_of_the_People%27s_Republic_of_China.svg/200px-Flag_of_the_People%27s_Republic_of_China.svg.png" height="25"></img>'
+  #          )
+
+  flag = c('<img src="test.png" height="25"></img>',
+           '<img src="https://commons.wikimedia.org//wiki/File:Flag_of_Afghanistan.svg" height="25"></img>'
+           )
+  
+  
+  )
+
+
+datatable(dat, escape = FALSE)
+
+
+})
+
+
+
+```
+

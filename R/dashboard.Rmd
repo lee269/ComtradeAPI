@@ -286,19 +286,22 @@ world <- world[world$region != "Antarctica",] # intercourse antarctica
 
 renderDataTable({
 
-dat <- data.frame(
-  country = c('USA', 'China'),
-  # flag = c('<img src="test.png" height="25"></img>',
-  #          '<img src="http://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Flag_of_the_People%27s_Republic_of_China.svg/200px-Flag_of_the_People%27s_Republic_of_China.svg.png" height="25"></img>'
-  #          )
+# dat <- data.frame(
+#   country = c('USA', 'China'),
+#   flag = c('<img src="test.png" height="25"></img>',
+#            '<img src="http://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Flag_of_the_People%27s_Republic_of_China.svg/200px-Flag_of_the_People%27s_Republic_of_China.svg.png" height="25"></img>'
+#            )
+# 
+#   # flag = c('<img src="test.png" height="25"></img>',
+#   #          '<img src="https://commons.wikimedia.org//wiki/File:Flag_of_Afghanistan.svg" height="25"></img>'
+#   #          )
+#   )
 
-  flag = c('<img src="test.png" height="25"></img>',
-           '<img src="https://commons.wikimedia.org//wiki/File:Flag_of_Afghanistan.svg" height="25"></img>'
-           )
-  
-  
-  )
+dat <- read.csv(here("data", "countries.csv"))
+dat$flagurl <- paste("'<img src=", '"', dat$png, '"',  'height="25"></img>', sep = "")
 
+dat <- dat %>% 
+      select(flagurl, reporter, continent, city_en)
 
 datatable(dat, escape = FALSE)
 

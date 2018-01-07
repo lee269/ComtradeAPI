@@ -1,3 +1,6 @@
+# Set up some reference data from Comtrade. Only need to to update this
+# occasionally
+
 library(jsonlite)
 library(here)
 

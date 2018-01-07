@@ -52,7 +52,15 @@ rag <- data.frame(
   ragimg = c('<img src="www/red.png" height="25"></img>',
            '<img src="www/amber.png" height="25"></img>',
            '<img src="www/green.png" height="25"></img>'
-           )
+           ),
+  ragarrow = c('<img src="www/redarrow1.png" height="25"></img>',
+           '<img src="www/amberarrow1.png" height="25"></img>',
+           '<img src="www/greenarrow1.png" height="25"></img>'
+            ),
+  double = c('<img src="www/redarrow1.png" height="25"></img> Indicator 1<p><img src="www/redarrow1.png" height="25"></img> Indicator 2',
+           '<img src="www/amberarrow1.png" height="25"></img><img src="www/amberarrow1.png" height="25"></img>',
+           '<img src="www/greenarrow1.png" height="25"></img><img src="www/greenarrow1.png" height="25"></img>'
+            )
 
   )
 
@@ -316,3 +324,10 @@ datatable(dat, escape = FALSE)
 
 ```
 
+### RAG
+
+``` {r}
+
+renderDataTable({ datatable(rag, escape = FALSE )})
+
+```

@@ -15,6 +15,7 @@ library(ggplot2)
 library(networkD3)
 library(data.tree)
 library(DT)
+library(wbstats)
 
 # load up helper functions
 source(here("R", "get_comtrade.R"))
@@ -26,6 +27,7 @@ reporters <- read.csv(here("data", "reporters.csv"), stringsAsFactors = FALSE, h
 partners <- read.csv(here("data", "partners.csv"), stringsAsFactors = FALSE, header = TRUE)
 hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = FALSE, header = TRUE)
 flows <- read.csv(here("data", "flows.csv"), stringsAsFactors = FALSE, header = TRUE)
+countryref <- read.csv(here("data", "countries.csv"), stringsAsFactors = FALSE, header = TRUE)
 
 # region data from https://unstats.un.org/unsd/methodology/m49/overview/
 regions <- read.csv(here("data", "UNSDregions.csv"), stringsAsFactors = FALSE, header = TRUE)
@@ -66,6 +68,9 @@ rag <- data.frame(
 
 
 ```
+
+Country
+=======================================================================
 
 Inputs {.sidebar}
 -----------------------------------------------------------------------
@@ -303,6 +308,12 @@ world <- world[world$region != "Antarctica",] # intercourse antarctica
 
 ```
 
+World Bank
+=======================================================================
+
+Row{.tabset}
+-----------------------------------------------------------------------
+
 ### DataTable
 
 ``` {r}
@@ -329,5 +340,41 @@ datatable(dat, escape = FALSE)
 ``` {r}
 
 renderDataTable({ datatable(rag, escape = FALSE )})
+
+```
+
+
+### World Bank
+
+``` {r}
+
+renderTable({
+
+indicators <- data.frame(
+                        ind_id = c("SP.POP.TOTL", "NY.GDP.PCAP.PP.KD", "NE.IMP.GNFS.ZS"),
+                        ind_text = c("Population", "GDP per capita PPP", "Imports of goods and services (% GDP)")
+                        )
+
+
+inds <- as.vector(indicators$ind_id)
+c1 <- as.vector(comtradedata()$partner_iso)
+
+wbinds <- wb(indicator = inds, mrv = 10, freq = "Y", country = c1)
+
+inddata <- wbinds %>% 
+           arrange(iso3c, indicatorID, date) %>% 
+           group_by(iso3c, indicatorID) %>% 
+           mutate(growth = (value / lag(value) * 100) - 100) %>% 
+           filter(!is.na(growth)) %>% 
+           summarise(avggrowth = mean(growth),
+                      start = min(date),
+                      end = max(date)) %>% 
+           ungroup() %>%
+           group_by(indicatorID) %>%
+           mutate(quartile = ntile(avggrowth, 3))
+
+  inddata
+  
+})
 
 ```

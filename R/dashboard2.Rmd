@@ -69,7 +69,7 @@ rag <- data.frame(
 
 ```
 
-Country
+Country Profile
 =======================================================================
 
 Inputs {.sidebar}
@@ -80,18 +80,19 @@ Inputs {.sidebar}
 ```{r}
 
 # set up input boxes
-selectInput("year", label = "Year", choices = yearlist, selected = 2014)
-selectInput("reporter", label = "Country", choices = reporterlist, selected = "156")
-selectInput("partner", label = "Partner", choices = partnerlist, selected = "all")
-selectInput("flow", label = "Trade Flow", choices = flowlist, selected = "1")
-selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220830")
+selectizeInput("reporter", label = "Country", choices = reporterlist, selected = "156")
+selectizeInput("year", label = "Years (5 max)", choices = yearlist, selected = 2014, multiple = TRUE, options = list(maxItems = 5))
+# selectInput("partner", label = "Partner", choices = partnerlist, selected = "all")
+# selectInput("flow", label = "Trade Flow", choices = flowlist, selected = "1")
+# selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220830")
+selectizeInput("hscode1", label = "Commodities (5 max)", choices = hscodelist, selected = "220830", multiple = TRUE, options = list(maxItems = 5))
 
 # experimental multi select - can this be implemented with the comtrade api?
-selectizeInput("hscode1", label = "Commodity", choices = hscodelist, selected = "220830", multiple = TRUE, options = list(maxItems = 5))
 
 # just a readout of the api params - either remove or turn into a proper api call url for user reference
 renderText( {paste(input$year, input$reporter, input$partner, input$flow, input$hscode) })
 renderText({ paste(input$hscode1, collapse = ",") })
+renderText({ paste("highest year:", max(input$year))})
 
 
 comtradedata <- reactive({
@@ -99,10 +100,10 @@ comtradedata <- reactive({
   withProgress(message = "Requesting Comtrade data...", detail = "This may take a while", value = NULL, {
   
       apidata <- get_comtrade(freq = "A",
-                     ps = input$year,
+                     ps = paste(input$year, collapse = ","),
                      r = input$reporter,
-                     p = input$partner,
-                     rg = input$flow,
+                     p = "all",
+                     rg = 1,
                      cc = paste(input$hscode1, collapse = ","), 
                      fmt = "csv"
                      )
@@ -203,44 +204,6 @@ renderGauge({
 Row {.tabset}
 -----------------------------------------------------------------------
 
-### Market share chart
-
-```{r}
-
-renderPlot({
-  
-  # all_imports <- comtradedata() %>% 
-  #                 filter(partner == "World") %>% 
-  #                 select(trade_value_us) %>% 
-  #                 as.numeric()
-  # 
-  # uk_imports <- comtradedata() %>% 
-  #                 filter(partner == "United Kingdom") %>% 
-  #                 select(trade_value_us) %>% 
-  #                 as.numeric()
-  # 
-  # mktshare <- comtradedata() %>% 
-  #           filter(partner != "World") %>% 
-  #           mutate(mktshare = (trade_value_us/all_imports) * 100) %>% 
-  #           arrange(desc(mktshare))
-  
-  ai <- all_imports()
-  uki <- uk_imports()
-
-cht <- ggplot(mktshare(), aes(x = year, y = mktshare, fill = partner)) +
-        scale_x_discrete() +
-        geom_bar(stat = "identity") +
-         ggtitle(paste("Total imports:", money(all_imports()), "UK imports:", money(uk_imports()), "UK market share", sprintf("%.3f %%", (uk_imports()/all_imports())*100)))
-
-cht
-                   
-#  paste("Total imports:", all_imports, "UK imports:", uk_imports, "UK market share", uk_imports/all_imports)
-  
-})
-
-
-```
-
 ### Raw Data
 
 ```{r}
@@ -250,52 +213,6 @@ renderTable({
   comtradedata()
   
 })
-
-```
-
-### Sankey
-
-```{r}
-
-renderSankeyNetwork({
-  
-  
-  #   sankey <- comtradedata() %>% 
-  #           filter(partner_iso != "WLD") %>% 
-  #           select(reporter_iso,
-  #                  partner_iso,
-  #                  trade_value_us) %>% 
-  #           arrange(desc(trade_value_us))
-  #   
-  #   sankey <- sankey %>% 
-  #             mutate(source = 0, target = seq.int(nrow(sankey)), value = trade_value_us)
-  # 
-  #   
-  # r <- reporters %>% 
-  #       filter(id == input$reporter) %>% 
-  #       select(name) %>% 
-  #       as.character()
-  # 
-  # nodes <- as.vector(sankey$partner_iso)
-  # nodes <- append(r, nodes)
-  # nodes <- data.frame("name" = nodes)
-  # 
-  # links <- sankey %>% 
-  #         select(source, target, value) 
-  # 
-  # x <- sankeyNetwork(Links = links, Nodes = nodes,
-  #               Source = "target", Target = "source",
-  #               Value = "value", NodeID = "name",
-  #               fontSize= 12, nodeWidth = 30)
-  #   
-  # x
-
-  x <- make_region_sankey(comtradedata(), regiondata = regions)
-  x
-  
-  
-})
-
 
 ```
 

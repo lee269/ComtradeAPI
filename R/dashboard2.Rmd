@@ -4,6 +4,7 @@ output:
   flexdashboard::flex_dashboard:
     orientation: rows
     vertical_layout: fill
+    theme: lumen
 runtime: shiny
 ---
 
@@ -75,9 +76,29 @@ Country Profile
 Inputs {.sidebar}
 -----------------------------------------------------------------------
 
-### Inputs
 
 ```{r}
+# Country name
+renderUI({
+  tags$h1(paste(names(which(reporterlist == input$reporter))))
+})
+
+# Country flag
+# image solution from https://stackoverflow.com/questions/45709189/renderimage-from-url-and-clickable
+renderUI({
+
+  imgurl <- countryref %>%
+            filter(reporter_code == input$reporter) %>%
+            select(png)
+  
+  imgurl2 <- imgurl[1,1]
+  tags$img(src = imgurl2, width = "100%", height = "100%")
+
+})
+# horizontal line
+renderUI({ tags$hr() })
+
+renderUI({ tags$h4("World Bank Country data") })
 
 # set up input boxes
 selectizeInput("reporter", label = "Country", choices = reporterlist, selected = "156")
@@ -91,8 +112,8 @@ selectizeInput("hscode1", label = "Commodities (5 max)", choices = hscodelist, s
 
 # just a readout of the api params - either remove or turn into a proper api call url for user reference
 renderText( {paste(input$year, input$reporter, input$partner, input$flow, input$hscode) })
-renderText({ paste(input$hscode1, collapse = ",") })
-renderText({ paste("highest year:", max(input$year))})
+
+
 
 
 comtradedata <- reactive({
@@ -222,6 +243,29 @@ renderTable({
 
 world <- map_data("world")
 world <- world[world$region != "Antarctica",] # intercourse antarctica
+
+```
+
+### Image
+
+```{r}
+
+renderUI({
+
+  imgurl <- countryref %>%
+            filter(reporter_code == input$reporter) %>%
+            select(png)
+  
+  imgurl2 <- imgurl[1,1]
+  tags$img(src = imgurl2, width = "10%", height = "10%")
+
+})
+
+renderUI({
+  tags$h2(paste(names(which(reporterlist == input$reporter))))
+})
+
+
 
 ```
 

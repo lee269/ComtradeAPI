@@ -4,7 +4,7 @@ output:
   flexdashboard::flex_dashboard:
     orientation: rows
     vertical_layout: fill
-    theme: lumen
+    theme: cosmo
 runtime: shiny
 ---
 
@@ -99,6 +99,22 @@ renderUI({
 renderUI({ tags$hr() })
 
 renderUI({ tags$h4("World Bank Country data") })
+
+renderUI({
+  
+  c <- countryref %>% 
+        filter(reporter_code == input$reporter) %>% 
+        select(reporter_iso)
+  z <- wb(country = c, indicator = c("SP.POP.TOTL", "NY.GDP.PCAP.PP.KD", "NE.IMP.GNFS.ZS"), mrv = 1)
+  
+  tags$body(p(paste(z$indicator[1], ":", format(z$value[1], big.mark = ","))),
+            p(paste(z$indicator[2], ":", paste("$", format(z$value[2], nsmall = 2, big.mark = ","), sep = ""))),
+            p(paste(z$indicator[3], ":", paste(format(z$value[3], nsmall = 2, digits = 2), "%", sep = ""))),
+            p(" "),
+            hr(),
+            p(" "))
+  
+})
 
 # set up input boxes
 selectizeInput("reporter", label = "Country", choices = reporterlist, selected = "156")
@@ -235,6 +251,19 @@ renderTable({
   
 })
 
+```
+
+### Market share summary
+
+```{r}
+renderTable({
+  shares <- comtradedata() %>% 
+             filter(partner_iso != "WLD") %>% 
+             group_by(year, commodity_code) %>% 
+             mutate(mktshare = (trade_value_us/sum(trade_value_us) * 100)) 
+             
+  shares
+})
 ```
 
 ### Map?

@@ -95,6 +95,7 @@ renderUI({
   tags$img(src = imgurl2, width = "100%", height = "100%")
 
 })
+
 # horizontal line
 renderUI({ tags$hr() })
 
@@ -124,7 +125,7 @@ selectizeInput("year", label = "Years (5 max)", choices = yearlist, selected = 2
 # selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220830")
 selectizeInput("hscode1", label = "Commodities (5 max)", choices = hscodelist, selected = "220830", multiple = TRUE, options = list(maxItems = 5))
 
-# experimental multi select - can this be implemented with the comtrade api?
+# renderUI({ actionButton("getdata", "Get data!") })
 
 # just a readout of the api params - either remove or turn into a proper api call url for user reference
 renderUI({
@@ -308,9 +309,17 @@ renderTable({
 ### Map?
 
 ``` {r}
+renderPlot({
 
 world <- map_data("world")
 world <- world[world$region != "Antarctica",] # intercourse antarctica
+world <- world[world$region == paste(names(which(reporterlist == input$reporter))), ]
+
+ggplot() + geom_polygon(data = world, aes(x=long, y = lat, group = group)) + 
+  coord_fixed(1.3) +
+  theme_void()
+ 
+})
 
 ```
 
@@ -325,7 +334,7 @@ renderUI({
             select(png)
   
   imgurl2 <- imgurl[1,1]
-  tags$img(src = imgurl2, width = "10%", height = "10%")
+  tags$img(src = imgurl2, width = "100%", height = "100%")
 
 })
 
@@ -334,6 +343,41 @@ renderUI({
 })
 
 
+
+```
+
+### Test layouts
+
+```{r}
+
+fillRow(flex = c(NA, NA, 1),
+        renderUI({
+
+  imgurl <- countryref %>%
+            filter(reporter_code == input$reporter) %>%
+            select(png)
+  
+  imgurl2 <- imgurl[1,1]
+  tags$img(src = imgurl2, width = "200", height = "133")
+
+}),
+renderPlot(width = 200, height = 133, {
+
+world <- map_data("world")
+world <- world[world$region != "Antarctica",] # intercourse antarctica
+world <- world[world$region == paste(names(which(reporterlist == input$reporter))), ]
+
+ggplot() + geom_polygon(data = world, aes(x=long, y = lat, group = group), fill = "gray50") + 
+  coord_fixed(1.3) +
+  theme_void()
+ 
+}),
+
+      renderUI({
+  tags$h2(paste(names(which(reporterlist == input$reporter))))
+})
+
+        )
 
 ```
 

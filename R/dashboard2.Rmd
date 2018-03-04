@@ -127,7 +127,25 @@ selectizeInput("hscode1", label = "Commodities (5 max)", choices = hscodelist, s
 # experimental multi select - can this be implemented with the comtrade api?
 
 # just a readout of the api params - either remove or turn into a proper api call url for user reference
-renderText( {paste(input$year, input$reporter, input$partner, input$flow, input$hscode) })
+renderUI({
+  
+    string <- paste("http://comtrade.un.org/api/get?"
+                 ,"max=100000&"
+                 ,"type=C&"
+                 ,"freq=A&" 
+                 ,"px=HS&" 
+                 ,"ps=", paste(input$year, collapse = ","), "&" 
+                 ,"r=", input$reporter, "&"
+                 ,"p=all&" 
+                 ,"rg=1&" 
+                 ,"cc=", paste(input$hscode1, collapse = ","), "&" 
+                 ,"fmt=csv"
+                 ,sep = "")
+  
+  tags$a(href = string, "Download data")
+  
+  # http://comtrade.un.org/api/get?max=100000&type=C&freq=A&px=HS&ps=2014&r=156&p=all&rg=1&cc=220830&fmt=%27csv%27
+  })
 
 
 
@@ -158,11 +176,27 @@ comtradedata <- reactive({
                      commodity_code,
                      commodity,
                      netweight_kg = netweight_kg_,
-                     trade_value_us = trade_value_us_)
+                     trade_value_us = trade_value_us_) %>% 
+              filter(partner_iso != "WLD") %>% 
+              group_by(year, commodity_code) %>% 
+              mutate(mktshareval = (trade_value_us/sum(trade_value_us) * 100),
+                     mktsharevalrank = min_rank(-mktshareval),
+                     mktsharevol = (netweight_kg/sum(netweight_kg) * 100),
+                     mktsharevolrank = min_rank(-mktsharevol),
+                     worldval = sum(trade_value_us),
+                     worldvol = sum(netweight_kg)) 
   
   apidata
   })
 })
+
+# melted
+# test2 <- test %>% 
+#          group_by(year, commodity_code) %>% 
+#          top_n(5, mktshareval) %>% 
+#          select(year, reporter, partner, commodity, trade_value_us, netweight_kg, mktshareval, mktsharevalrank, mktsharevol, mktsharevolrank, worldval, worldvol) %>% 
+#          arrange(year, commodity, -mktsharevalrank) %>% 
+#          melt(measure.vars = c("trade_value_us", "netweight_kg", "mktshareval", "mktsharevalrank", "mktsharevol", "mktsharevolrank", "worldval", "worldvol"))
 
   all_imports <- reactive({ 
       retdata <-  comtradedata() %>% 
@@ -260,7 +294,12 @@ renderTable({
   shares <- comtradedata() %>% 
              filter(partner_iso != "WLD") %>% 
              group_by(year, commodity_code) %>% 
-             mutate(mktshare = (trade_value_us/sum(trade_value_us) * 100)) 
+             mutate(mktshareval = (trade_value_us/sum(trade_value_us) * 100),
+               mktsharevalrank = min_rank(-mktshareval),
+               mktsharevol = (netweight_kg/sum(netweight_kg) * 100),
+               mktsharevolrank = min_rank(-mktsharevol),
+               worldval = sum(trade_value_us),
+               worldvol = sum(netweight_kg))  
              
   shares
 })

@@ -68,6 +68,25 @@ rag <- data.frame(
   )
 
 
+# World Bank reference data
+indicators <- data.frame(
+                        ind_id = c("SP.POP.TOTL", "NY.GDP.PCAP.PP.KD", "NE.IMP.GNFS.ZS"),
+                        ind_text = c("Population", "GDP per capita PPP", "Imports of goods and services (% GDP)")
+                        )
+
+
+inds <- as.vector(indicators$ind_id)
+c1 <- as.vector(countryref$reporter_iso)
+wbinds <- wb(indicator = inds, mrv = 10, freq = "Y", country = c1)
+
+wbranks <- wbinds %>%
+            group_by(date, indicatorID) %>% 
+            mutate(indrank = min_rank(-value)) %>%
+            ungroup() %>% 
+            group_by(iso3c, indicatorID) %>% 
+            filter(date == max(date))
+
+
 ```
 
 Country Profile
@@ -230,48 +249,6 @@ comtradedata <- reactive({
 
 ```
 
-Row
------------------------------------------------------------------------
-
-### Size of Market
-
-```{r}
-
-renderValueBox({
-  
-  valueBox(value = money(all_imports()), caption = paste(names(which(reporterlist == input$reporter)), "import market size"), icon = "fa-usd")
-  
-})
-
-```
-
-
-### Market Share
-
-```{r}
-
-renderGauge({
-  
-  share <- format((uk_imports()/all_imports()) * 100, nsmall = 2, digits = 2)
-  gauge(value = share, min = 0, max = 100, symbol = "%",label = "UK Market Share")
-  
-})
-
-```
-
-### UK Exports
-
-```{r}
-
-renderGauge({
-  
-  gauge(value = money(uk_imports()), min = 0, max = uk_imports(), symbol = "$",label = "UK Market Share")
-  
-})
-
-```
-
-
 
 Row {.tabset}
 -----------------------------------------------------------------------
@@ -352,32 +329,27 @@ renderUI({
 
 fillRow(flex = c(NA, NA, 1),
         renderUI({
-
-  imgurl <- countryref %>%
-            filter(reporter_code == input$reporter) %>%
-            select(png)
-  
-  imgurl2 <- imgurl[1,1]
-  tags$img(src = imgurl2, width = "200", height = "133")
-
-}),
-renderPlot(width = 200, height = 133, {
-
-world <- map_data("world")
-world <- world[world$region != "Antarctica",] # intercourse antarctica
-world <- world[world$region == paste(names(which(reporterlist == input$reporter))), ]
-
-ggplot() + geom_polygon(data = world, aes(x=long, y = lat, group = group), fill = "gray50") + 
-  coord_fixed(1.3) +
-  theme_void()
- 
-}),
-
-      renderUI({
-  tags$h2(paste(names(which(reporterlist == input$reporter))))
-})
-
-        )
+                  imgurl <- countryref %>%
+                            filter(reporter_code == input$reporter) %>%
+                            select(png)
+                  
+                  imgurl2 <- imgurl[1,1]
+                  tags$img(src = imgurl2, width = "200", height = "133")
+                }),
+        renderPlot(width = 200, height = 133, {
+                    world <- map_data("world")
+                    world <- world[world$region != "Antarctica",] # intercourse antarctica
+                    world <- world[world$region == paste(names(which(reporterlist == input$reporter))), ]
+                    
+                    ggplot() + geom_polygon(data = world, aes(x=long, y = lat, group = group), fill = "gray50") + 
+                      coord_fixed(1.3) +
+                      theme_void()
+                     
+                  }),
+        renderUI({
+                  tags$h2(paste(names(which(reporterlist == input$reporter))))
+                })
+        ) # end fillRow
 
 ```
 
@@ -449,5 +421,14 @@ inddata <- wbinds %>%
   inddata
   
 })
+
+```
+
+### WB2
+
+```{r}
+
+
+renderTable({ wbinds })
 
 ```

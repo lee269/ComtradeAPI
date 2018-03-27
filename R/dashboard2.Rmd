@@ -144,7 +144,7 @@ selectizeInput("year", label = "Years (5 max)", choices = yearlist, selected = 2
 # selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220830")
 selectizeInput("hscode1", label = "Commodities (5 max)", choices = hscodelist, selected = "220830", multiple = TRUE, options = list(maxItems = 5))
 
-# renderUI({ actionButton("getdata", "Get data!") })
+renderUI({actionButton("getdata", "Get data")})
 
 # just a readout of the api params - either remove or turn into a proper api call url for user reference
 renderUI({
@@ -169,8 +169,8 @@ renderUI({
 
 
 
-
-comtradedata <- reactive({
+# https://shiny.rstudio.com/articles/action-buttons.html
+comtradedata <- eventReactive(input$getdata, {
 
   withProgress(message = "Requesting Comtrade data...", detail = "This may take a while", value = NULL, {
   
@@ -257,11 +257,13 @@ Row {.tabset}
 
 ```{r}
 
-renderTable({
+DT::renderDataTable({
   
-  comtradedata()
+  datatable(comtradedata(), extensions = "Buttons", options = list(dom = "Bfrtip",
+                                                                   buttons = c("csv"),
+                                                                   lengthMenu = c(10, 25, 50, -1)))
   
-})
+}, server = FALSE)
 
 ```
 

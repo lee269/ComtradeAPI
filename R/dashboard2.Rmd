@@ -137,14 +137,24 @@ renderUI({
 })
 
 # set up input boxes
-selectizeInput("reporter", label = "Country", choices = reporterlist, selected = "156")
-selectizeInput("year", label = "Years (5 max)", choices = yearlist, selected = 2014, multiple = TRUE, options = list(maxItems = 5))
+selectizeInput("reporter", label = "1. Country", choices = reporterlist, selected = "156")
+selectizeInput("year", label = "2. Years (5 max)", choices = yearlist, selected = 2014, multiple = TRUE, options = list(maxItems = 5))
 # selectInput("partner", label = "Partner", choices = partnerlist, selected = "all")
 # selectInput("flow", label = "Trade Flow", choices = flowlist, selected = "1")
 # selectInput("hscode", label = "Commodity", choices = hscodelist, selected = "220830")
-selectizeInput("hscode1", label = "Commodities (5 max)", choices = hscodelist, selected = "220830", multiple = TRUE, options = list(maxItems = 5))
+selectizeInput("hscode1", label = "3. Commodities (5 max)", choices = hscodelist, selected = "220830", multiple = TRUE, options = list(maxItems = 5))
 
-renderUI({actionButton("getdata", "Get data")})
+renderUI({actionButton("getdata", "4. Get data!")})
+
+renderUI({ tags$hr()})
+
+# renderUI({downloadButton("downloaddata", "Download raw data")})
+
+downloadHandler(
+                filename = function() { paste("data-", Sys.time(), ".csv", sep = "")},
+                content = function(file) {write.csv(comtradedata(), file, row.names = FALSE)}
+               )
+
 
 # just a readout of the api params - either remove or turn into a proper api call url for user reference
 renderUI({
@@ -259,11 +269,11 @@ Row {.tabset}
 
 DT::renderDataTable({
   
-  datatable(comtradedata(), extensions = "Buttons", options = list(dom = "Bfrtip",
+  datatable(comtradedata(), extensions = "Buttons", options = list(dom = "Blfrtip",
                                                                    buttons = c("csv"),
                                                                    lengthMenu = c(10, 25, 50, -1)))
   
-}, server = FALSE)
+}, server = TRUE)
 
 ```
 
@@ -397,6 +407,11 @@ fillRow(flex = c(NA, 1, 1),
                     })
         ) # end fillRow
 
+
+
+
+
+
 ```
 
 
@@ -411,7 +426,7 @@ Row{.tabset}
 
 ``` {r}
 
-renderDataTable({
+DT::renderDataTable({
 
 dat <- read.csv(here("data", "countries.csv"))
 dat$flagurl <- paste("'<img src=", '"', dat$png, '"',  'height="25"></img>', sep = "")
@@ -432,7 +447,7 @@ datatable(dat, escape = FALSE)
 
 ``` {r}
 
-renderDataTable({ datatable(rag, escape = FALSE )})
+DT::renderDataTable({ datatable(rag, escape = FALSE )})
 
 ```
 

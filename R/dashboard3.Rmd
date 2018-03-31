@@ -1,0 +1,479 @@
+---
+title: "Comtrade dashboard"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+    theme: cosmo
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+library(flexdashboard)
+library(here)
+library(dplyr)
+library(ggplot2)
+library(networkD3)
+library(data.tree)
+library(DT)
+library(wbstats)
+
+# load up helper functions
+source(here("R", "get_comtrade.R"))
+source(here("R", "utils.R"))
+source(here("R", "make_sankey.R"))
+
+# read in reference datasets
+reporters <- read.csv(here("data", "reporters.csv"), stringsAsFactors = FALSE, header = TRUE)
+partners <- read.csv(here("data", "partners.csv"), stringsAsFactors = FALSE, header = TRUE)
+hscodes <- read.csv(here("data", "hscodes.csv"), stringsAsFactors = FALSE, header = TRUE)
+flows <- read.csv(here("data", "flows.csv"), stringsAsFactors = FALSE, header = TRUE)
+countryref <- read.csv(here("data", "countries.csv"), stringsAsFactors = FALSE, header = TRUE)
+
+# region data from https://unstats.un.org/unsd/methodology/m49/overview/
+regions <- read.csv(here("data", "UNSDregions.csv"), stringsAsFactors = FALSE, header = TRUE)
+colnames(regions) <- dbSafeNames(colnames(regions))
+
+# optional - restrict to 4 digit comcode
+# hscodes <- hscodes %>%
+#           filter(nchar(id) == 4)
+
+# set up reference data into list format required by selectInput boxes
+reporterlist <- split(reporters$id, reporters$name)
+partnerlist <- split(partners$id, partners$name)
+hscodelist <- split(hscodes$id, hscodes$text)
+flowlist <- split(flows$id, flows$text)
+yearlist <- c(1990:2016)
+
+# addResourcePath seems to be required for local image files to work in data
+# tables. See
+# https://stackoverflow.com/questions/42370227/display-image-in-a-data-table-from-a-local-path-in-r-shiny
+addResourcePath("www", here("www"))
+
+rag <- data.frame(
+  ragstatus = c('red', 'amber', 'green'),
+  ragimg = c('<img src="www/red.png" height="25"></img>',
+           '<img src="www/amber.png" height="25"></img>',
+           '<img src="www/green.png" height="25"></img>'
+           ),
+  ragarrow = c('<img src="www/redarrow1.png" height="25"></img>',
+           '<img src="www/amberarrow1.png" height="25"></img>',
+           '<img src="www/greenarrow1.png" height="25"></img>'
+            ),
+  double = c('<img src="www/redarrow1.png" height="25"></img> Indicator 1<p><img src="www/redarrow1.png" height="25"></img> Indicator 2',
+           '<img src="www/amberarrow1.png" height="25"></img><img src="www/amberarrow1.png" height="25"></img>',
+           '<img src="www/greenarrow1.png" height="25"></img><img src="www/greenarrow1.png" height="25"></img>'
+            )
+
+  )
+
+
+# World Bank reference data
+indicators <- data.frame(
+                        ind_id = c("SP.POP.TOTL", "NY.GDP.PCAP.PP.KD", "NE.IMP.GNFS.ZS"),
+                        ind_text = c("Population", "GDP per capita PPP", "Imports of goods and services (% GDP)")
+                        )
+
+
+inds <- as.vector(indicators$ind_id)
+c1 <- as.vector(countryref$reporter_iso)
+wbinds <- wb(indicator = inds, mrv = 10, freq = "Y", country = c1)
+
+wbranks <- wbinds %>%
+            group_by(date, indicatorID) %>% 
+            mutate(indrank = min_rank(-value)) %>%
+            ungroup() %>% 
+            group_by(iso3c, indicatorID) %>% 
+            filter(date == max(date))
+
+
+
+
+```
+
+Country Profile
+=======================================================================
+
+Inputs {.sidebar}
+-----------------------------------------------------------------------
+
+
+```{r}
+
+#Reactive elements-----------------------------------------------------
+# https://shiny.rstudio.com/articles/action-buttons.html
+# Country name
+countryh1 <- eventReactive(input$getdata, {
+                  tags$h1(paste(names(which(reporterlist == input$reporter)))) 
+                  })
+
+# Country flag
+# image solution from https://stackoverflow.com/questions/45709189/renderimage-from-url-and-clickable
+countryflag <- eventReactive(input$getdata, {
+                            imgurl <- countryref %>%
+                                      filter(reporter_code == input$reporter) %>%
+                                      select(png)
+                            imgurl2 <- imgurl[1,1]
+                            tags$img(src = imgurl2, width = "100%", height = "100%")
+                            })
+# WB summary
+wbsummary <- eventReactive(input$getdata, { 
+  
+                            c <- countryref %>% 
+                                  filter(reporter_code == input$reporter) %>% 
+                                  select(reporter_iso)
+                            z <- wb(country = c, indicator = c("SP.POP.TOTL", "NY.GDP.PCAP.PP.KD", "NE.IMP.GNFS.ZS"), mrv = 1)
+                            
+                            tags$body(h4("World Bank Country data"),
+                                      p(paste(z$indicator[1], ":", format(z$value[1], big.mark = ","))),
+                                      p(paste(z$indicator[2], ":", paste("$", format(z$value[2], nsmall = 2, big.mark = ","), sep = ""))),
+                                      p(paste(z$indicator[3], ":", paste(format(z$value[3], nsmall = 2, digits = 2), "%", sep = ""))),
+                                      p(" "),
+                                      hr(),
+                                      p(" "))
+  
+                            })
+
+# Get Comtrade data
+comtradedata <- eventReactive(input$getdata, {
+
+                              withProgress(message = "Requesting Comtrade data...", detail = "This may take a while", value = NULL, {
+                              
+                                  apidata <- get_comtrade(freq = "A",
+                                                 ps = paste(input$year, collapse = ","),
+                                                 r = input$reporter,
+                                                 p = "all",
+                                                 rg = 1,
+                                                 cc = paste(input$hscode1, collapse = ","), 
+                                                 fmt = "csv"
+                                                 )
+                                
+                              apidata <- apidata$data
+                              colnames(apidata) <- dbSafeNames(colnames(apidata))  
+                              apidata <- apidata %>% 
+                                          select(year, 
+                                                 trade_flow,
+                                                 reporter,
+                                                 reporter_iso,
+                                                 partner,
+                                                 partner_iso,
+                                                 commodity_code,
+                                                 commodity,
+                                                 netweight_kg = netweight_kg_,
+                                                 trade_value_us = trade_value_us_) %>% 
+                                          filter(partner_iso != "WLD") %>% 
+                                          group_by(year, commodity_code) %>% 
+                                          mutate(mktshareval = (trade_value_us/sum(trade_value_us) * 100),
+                                                 mktsharevalrank = min_rank(-mktshareval),
+                                                 mktsharevol = (netweight_kg/sum(netweight_kg) * 100),
+                                                 mktsharevolrank = min_rank(-mktsharevol),
+                                                 worldval = sum(trade_value_us),
+                                                 worldvol = sum(netweight_kg)) 
+                              
+                              apidata
+                              })
+                            })
+
+#Sidebar UI---------------------------------------------------
+
+# Country title
+renderUI({countryh1()})
+# Country flag
+renderUI({countryflag()})
+# horizontal line
+renderUI({tags$hr()})
+# WB summary text
+renderUI({wbsummary()})
+# set up input boxes
+selectizeInput("reporter", label = "1. Country", choices = reporterlist, selected = "156")
+selectizeInput("year", label = "2. Years (5 max)", choices = yearlist, selected = 2014, multiple = TRUE, options = list(maxItems = 5))
+selectizeInput("hscode1", label = "3. Commodities (5 max)", choices = hscodelist, selected = "220830", multiple = TRUE, options = list(maxItems = 5))
+# Get data button
+renderUI({actionButton("getdata", "4. Get data!")})
+# horizontal line
+renderUI({tags$hr()})
+# Download button
+downloadHandler(
+                filename = function() { paste("data-", Sys.time(), ".csv", sep = "")},
+                content = function(file) {write.csv(comtradedata(), file, row.names = FALSE)}
+               )
+# show a dialog of api call url for user reference
+renderUI({actionLink("apicall", "View Comtrade API call")})
+observeEvent(input$apicall, {
+      showModal(modalDialog(
+        title = "Copy this link to download the data direct from Comtrade",
+        paste("http://comtrade.un.org/api/get?"
+                 ,"max=100000&"
+                 ,"type=C&"
+                 ,"freq=A&" 
+                 ,"px=HS&" 
+                 ,"ps=", paste(input$year, collapse = ","), "&" 
+                 ,"r=", input$reporter, "&"
+                 ,"p=all&" 
+                 ,"rg=1&" 
+                 ,"cc=", paste(input$hscode1, collapse = ","), "&" 
+                 ,"fmt=csv"
+                 ,sep = ""),
+        easyClose = TRUE,
+        footer = NULL
+      ))
+    })
+
+
+```
+
+
+Row {.tabset}
+-----------------------------------------------------------------------
+
+### Raw Data
+
+```{r}
+
+DT::renderDataTable({
+  
+  datatable(comtradedata(), extensions = "Buttons", options = list(dom = "Blfrtip",
+                                                                   buttons = c("csv"),
+                                                                   lengthMenu = c(10, 25, 50, -1)))
+  
+}, server = TRUE)
+
+```
+
+### Market share summary
+
+```{r}
+renderTable({
+            comtradedata()
+})
+```
+
+
+### Test layouts
+
+```{r}
+
+fillRow(flex = c(NA, NA, 1),
+        renderUI({
+                  imgurl <- countryref %>%
+                            filter(reporter_code == input$reporter) %>%
+                            select(png)
+                  
+                  imgurl2 <- imgurl[1,1]
+                  tags$img(src = imgurl2, width = "200", height = "133")
+                }),
+        renderPlot(width = 200, height = 133, {
+                    world <- map_data("world")
+                    world <- world[world$region != "Antarctica",] # intercourse antarctica
+                    world <- world[world$region == paste(names(which(reporterlist == input$reporter))), ]
+                    
+                    ggplot() + geom_polygon(data = world, aes(x=long, y = lat, group = group), fill = "gray50") + 
+                      coord_fixed(1.3) +
+                      theme_void()
+                     
+                  }),
+        renderUI({
+                  tags$h2(paste(names(which(reporterlist == input$reporter))))
+                })
+        ) # end fillRow
+
+```
+
+### Profile
+
+```{r}
+
+fillRow(flex = c(NA, 1, 1),
+        # Map
+        renderPlot(width = 200, height = 133, {
+                    world <- map_data("world")
+                    world <- world[world$region != "Antarctica",] # intercourse antarctica
+                    world <- world[world$region == paste(names(which(reporterlist == input$reporter))), ]
+                    
+                    ggplot() + geom_polygon(data = world, aes(x=long, y = lat, group = group), fill = "gray50") + 
+                      coord_fixed(1.3) +
+                      theme_void()
+                     
+                  }),
+        # WB text
+        renderUI({
+                    iso3 <- countryref %>% 
+                            filter(reporter_code == input$reporter) %>% 
+                            select(reporter_iso) %>% 
+                            as.character()
+                    wb <- wbranks %>% 
+                        filter(iso3c == iso3)
+                  
+                    tags$body(p(paste(wb$indicator[1], ":", format(wb$value[1], big.mark = ","))),
+                              p(paste(wb$indicator[2], ":", paste("$", format(wb$value[2], nsmall = 2, big.mark = ","), sep = ""))),
+                              p(paste(wb$indicator[3], ":", paste(format(wb$value[3], nsmall = 2, digits = 2), "%", sep = "")))
+                              )
+                }),
+        renderTable({
+                    iso3 <- countryref %>% 
+                            filter(reporter_code == input$reporter) %>% 
+                            select(reporter_iso) %>% 
+                            as.character()
+                    wb2 <- wbranks %>% 
+                            filter(iso3c == iso3) %>% 
+                            select(indicator, value, indrank)
+                    wb2
+                    })
+        ) # end fillRow
+
+
+
+
+
+
+```
+
+### Layout
+
+```{r}
+
+fillCol(flex = c(3, 3, 6),
+        # col 1
+        fillRow(flex = c(NA, NA, 1), 
+                # col 1 row 1
+                # Flag
+                renderUI({
+                  imgurl <- countryref %>%
+                            filter(reporter_code == input$reporter) %>%
+                            select(png)
+                  
+                  imgurl2 <- imgurl[1,1]
+                  tags$img(src = imgurl2, width = "200", height = "133")
+                }),
+                # col 1 row 2
+                # Map
+                renderPlot(width = 200, height = 133, {
+                    world <- map_data("world")
+                    world <- world[world$region != "Antarctica",] # intercourse antarctica
+                    world <- world[world$region == paste(names(which(reporterlist == input$reporter))), ]
+                    
+                    ggplot() + geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "gray50") + 
+                      coord_fixed(1.3) +
+                      theme_void()
+                     
+                  }),
+                # col 1 row 3
+                # Text
+                renderUI({
+                    iso3 <- countryref %>% 
+                            filter(reporter_code == input$reporter) %>% 
+                            select(reporter_iso) %>% 
+                            as.character()
+                    wb <- wbranks %>% 
+                        filter(iso3c == iso3)
+                  
+                    tags$body(h3(paste(names(which(reporterlist == input$reporter)))),
+                              p(paste(wb$indicator[1], ":", format(wb$value[1], big.mark = ","))),
+                              p(paste(wb$indicator[2], ":", paste("$", format(wb$value[2], nsmall = 2, big.mark = ","), sep = ""))),
+                              p(paste(wb$indicator[3], ":", paste(format(wb$value[3], nsmall = 2, digits = 2), "%", sep = ""))),
+                              p("shfoshf oshfoih foi oifhew iof ewoifhoeihf oish fois fios fios doifsoidfsdio fiosdhfiosd hfosdihfosd oifsdofsdofs fois dois fosd fhodsofi sdhfo isdhoisdfoisdofihs od fosid ")
+                              )
+                })
+
+                ),
+        # col 2
+        fillRow(flex = c(1,1,1),
+                # col 2 row 1
+                renderUI({tags$body(p("Hello"))}),
+                # col 2 row 2
+                renderUI({tags$body(p("Hello"))}),
+                # col 2 row 3
+                renderUI({tags$body(p("Hello"))})
+                ),
+        # col 3
+        fillRow(flex = c(1,1,1), 
+                # col 3 row 1
+                renderUI({tags$body(p("Hello"))}),
+                # col 3 row 2
+                renderUI({tags$body(p("Hello"))}),
+                # col 3 row 3
+                renderUI({tags$body(p("Hello"))})
+                )
+        )
+
+```
+
+World Bank
+=======================================================================
+
+Row{.tabset}
+-----------------------------------------------------------------------
+
+### DataTable
+
+``` {r}
+
+DT::renderDataTable({
+
+dat <- read.csv(here("data", "countries.csv"))
+dat$flagurl <- paste("'<img src=", '"', dat$png, '"',  'height="25"></img>', sep = "")
+
+dat <- dat %>%
+      select(flagurl, reporter, continent, city_en)
+
+datatable(dat, escape = FALSE)
+
+
+})
+
+
+
+```
+
+### RAG
+
+``` {r}
+
+DT::renderDataTable({ datatable(rag, escape = FALSE )})
+
+```
+
+
+### World Bank
+
+``` {r}
+
+renderTable({
+
+indicators <- data.frame(
+                        ind_id = c("SP.POP.TOTL", "NY.GDP.PCAP.PP.KD", "NE.IMP.GNFS.ZS"),
+                        ind_text = c("Population", "GDP per capita PPP", "Imports of goods and services (% GDP)")
+                        )
+
+
+inds <- as.vector(indicators$ind_id)
+c1 <- as.vector(comtradedata()$partner_iso)
+
+wbinds <- wb(indicator = inds, mrv = 10, freq = "Y", country = c1)
+
+inddata <- wbinds %>% 
+           arrange(iso3c, indicatorID, date) %>% 
+           group_by(iso3c, indicatorID) %>% 
+           mutate(growth = (value / lag(value) * 100) - 100) %>% 
+           filter(!is.na(growth)) %>% 
+           summarise(avggrowth = mean(growth),
+                      start = min(date),
+                      end = max(date)) %>% 
+           ungroup() %>%
+           group_by(indicatorID) %>%
+           mutate(quartile = ntile(avggrowth, 3))
+
+  inddata
+  
+})
+
+```
+
+### WB2
+
+```{r}
+
+
+renderTable({ wbinds })
+
+```

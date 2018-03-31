@@ -196,8 +196,7 @@ comtradedata <- eventReactive(input$getdata, {
   apidata <- apidata$data
   colnames(apidata) <- dbSafeNames(colnames(apidata))  
   apidata <- apidata %>% 
-              select(classification, 
-                     year, 
+              select(year, 
                      trade_flow,
                      reporter,
                      reporter_iso,
@@ -281,17 +280,7 @@ DT::renderDataTable({
 
 ```{r}
 renderTable({
-  shares <- comtradedata() %>% 
-             filter(partner_iso != "WLD") %>% 
-             group_by(year, commodity_code) %>% 
-             mutate(mktshareval = (trade_value_us/sum(trade_value_us) * 100),
-               mktsharevalrank = min_rank(-mktshareval),
-               mktsharevol = (netweight_kg/sum(netweight_kg) * 100),
-               mktsharevolrank = min_rank(-mktsharevol),
-               worldval = sum(trade_value_us),
-               worldvol = sum(netweight_kg))  
-             
-  shares
+            comtradedata()
 })
 ```
 
@@ -414,7 +403,75 @@ fillRow(flex = c(NA, 1, 1),
 
 ```
 
+### Layout
 
+```{r}
+
+fillCol(flex = c(3, 3, 6),
+        # col 1
+        fillRow(flex = c(NA, NA, 1), 
+                # col 1 row 1
+                # Flag
+                renderUI({
+                  imgurl <- countryref %>%
+                            filter(reporter_code == input$reporter) %>%
+                            select(png)
+                  
+                  imgurl2 <- imgurl[1,1]
+                  tags$img(src = imgurl2, width = "200", height = "133")
+                }),
+                # col 1 row 2
+                # Map
+                renderPlot(width = 200, height = 133, {
+                    world <- map_data("world")
+                    world <- world[world$region != "Antarctica",] # intercourse antarctica
+                    world <- world[world$region == paste(names(which(reporterlist == input$reporter))), ]
+                    
+                    ggplot() + geom_polygon(data = world, aes(x = long, y = lat, group = group), fill = "gray50") + 
+                      coord_fixed(1.3) +
+                      theme_void()
+                     
+                  }),
+                # col 1 row 3
+                # Text
+                renderUI({
+                    iso3 <- countryref %>% 
+                            filter(reporter_code == input$reporter) %>% 
+                            select(reporter_iso) %>% 
+                            as.character()
+                    wb <- wbranks %>% 
+                        filter(iso3c == iso3)
+                  
+                    tags$body(h3(paste(names(which(reporterlist == input$reporter)))),
+                              p(paste(wb$indicator[1], ":", format(wb$value[1], big.mark = ","))),
+                              p(paste(wb$indicator[2], ":", paste("$", format(wb$value[2], nsmall = 2, big.mark = ","), sep = ""))),
+                              p(paste(wb$indicator[3], ":", paste(format(wb$value[3], nsmall = 2, digits = 2), "%", sep = ""))),
+                              p("shfoshf oshfoih foi oifhew iof ewoifhoeihf oish fois fios fios doifsoidfsdio fiosdhfiosd hfosdihfosd oifsdofsdofs fois dois fosd fhodsofi sdhfo isdhoisdfoisdofihs od fosid ")
+                              )
+                })
+
+                ),
+        # col 2
+        fillRow(flex = c(1,1,1),
+                # col 2 row 1
+                renderUI({tags$body(p("Hello"))}),
+                # col 2 row 2
+                renderUI({tags$body(p("Hello"))}),
+                # col 2 row 3
+                renderUI({tags$body(p("Hello"))})
+                ),
+        # col 3
+        fillRow(flex = c(1,1,1), 
+                # col 3 row 1
+                renderUI({tags$body(p("Hello"))}),
+                # col 3 row 2
+                renderUI({tags$body(p("Hello"))}),
+                # col 3 row 3
+                renderUI({tags$body(p("Hello"))})
+                )
+        )
+
+```
 
 World Bank
 =======================================================================

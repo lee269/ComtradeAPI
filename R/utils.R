@@ -29,3 +29,56 @@ money <-  function(x) {
     return(output)
   }
 }
+
+
+bumpchart <- function(data, top_n = 5) {
+  
+  # http://data-slinky.com/2016/07/31/bump_charts.html
+  summary <- data %>% 
+    group_by(commodity_code, year) %>% 
+    filter(mktsharevalrank <= top_n | partner_iso == "GBR") %>% 
+    arrange(year, commodity_code, mktsharevalrank) %>% 
+    select(year, commodity_code, commodity, partner, mktsharevalrank, mktshareval) 
+  
+  summaryfinalyear <- summary %>% 
+    group_by(partner) %>% 
+    filter(year == max(year)) %>% 
+    ungroup()
+  
+  
+  summaryfirstappearance <- summary %>%
+    group_by(partner) %>% 
+    filter(year == min(year)) %>% 
+    ungroup()
+  
+  nyears <- data %>% 
+            group_by(year) %>% 
+            summarise(tot = n()) %>% 
+            select(year) %>% 
+            nrow()
+         
+  x <- ggplot(summary, aes(x = year, y = mktsharevalrank)) +
+    geom_line(aes(colour = factor(partner)), size = 1.5) +
+    geom_point(shape = 21, stroke = 2, size = 5, fill = "white", aes(colour = factor(partner))) +
+    geom_label(data = summaryfinalyear, aes(x = year, y = mktsharevalrank, fill = factor(partner), label = partner), colour = "white") +
+    geom_label(data = summaryfirstappearance, aes(x = year, y = mktsharevalrank, fill = factor(partner), label = partner), colour = "white") +
+    scale_y_reverse(lim = c(top_n,1), breaks = scales::pretty_breaks(n = top_n)) +
+    facet_wrap( ~ commodity) +
+    ggtitle('Market share Ranking') +
+    xlab(NULL) +
+    ylab("Rank") +
+    theme_minimal() +
+    theme_bw() +
+    # scale_colour_manual(values=pal1) +
+    theme(panel.background = element_rect(fill = '#ffffff'),
+          plot.title = element_text(size=14), legend.title=element_blank(),
+          axis.text = element_text(size=11), axis.title=element_text(size=11), 
+          panel.border = element_blank(), legend.position='none', 
+          panel.grid.minor.x = element_blank(), panel.grid.minor.y = element_blank(),
+          axis.ticks.x=element_blank(), axis.ticks.y=element_blank())
+  
+   
+  
+}
+
+

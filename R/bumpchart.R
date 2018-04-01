@@ -9,7 +9,7 @@ source(here("R", "utils.R"))
 
 
 apidata <- get_comtrade(freq = "A",
-                        ps = "2012,2013,2014,2015,2016",
+                        ps = "2013,2014,2015,2016",
                         r = 156,
                         p = "all",
                         rg = 1,
@@ -41,7 +41,15 @@ test <- apidata %>%
                mktsharevolrank = min_rank(-mktsharevol),
                worldval = sum(trade_value_us),
                worldvol = sum(netweight_kg)) 
-  
+ 
+z <- test %>% 
+      group_by(year) %>% 
+      summarise(tot = n()) %>% 
+      select(year) %>% 
+     nrow()
+
+z1 <- bumpchart(test)
+ 
 # http://data-slinky.com/2016/07/31/bump_charts.html
 summary <- test %>% 
            group_by(commodity_code, year) %>% 
@@ -50,7 +58,9 @@ summary <- test %>%
            select(year, commodity_code, commodity, partner, mktsharevalrank, mktshareval) 
 
 summaryfinalyear <- summary %>% 
-                    filter(year == 2016)
+                    group_by(partner) %>% 
+                    filter(year == max(year)) %>% 
+                    ungroup()
 
 summaryfirstappearance <- summary %>%
                           group_by(partner) %>% 

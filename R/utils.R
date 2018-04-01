@@ -81,4 +81,12 @@ bumpchart <- function(data, top_n = 5) {
   
 }
 
-
+arrowimg <- function(val, low, high) {
+  if(val <= low) {
+    return('<img src="www/downarrowgrey.png" height="25"></img>')
+  }
+  if (val >= high) {
+    return('<img src="www/uparrowgrey.png" height="25"></img>')
+  }
+  return('<img src="www/levelarrowgrey.png" height="25"></img>')
+}

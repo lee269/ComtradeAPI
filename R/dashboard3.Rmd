@@ -69,23 +69,41 @@ rag <- data.frame(
 
 
 # World Bank reference data
+# IC.BUS.EASE.XQ
+ind_ids <- c("SP.POP.TOTL", "NY.GDP.PCAP.PP.KD", "NE.IMP.GNFS.ZS")
+ind_text <- c("Population", "GDP per capita PPP", "Imports of goods and services (% GDP)")
+
 indicators <- data.frame(
-                        ind_id = c("SP.POP.TOTL", "NY.GDP.PCAP.PP.KD", "NE.IMP.GNFS.ZS"),
-                        ind_text = c("Population", "GDP per capita PPP", "Imports of goods and services (% GDP)")
+                        indicatorID = ind_ids,
+                        ind_short_text = ind_text
                         )
 
 
-inds <- as.vector(indicators$ind_id)
+
 c1 <- as.vector(countryref$reporter_iso)
-wbinds <- wb(indicator = inds, mrv = 10, freq = "Y", country = c1)
+wbinds <- wb(indicator = ind_ids, mrv = 10, freq = "Y", country = c1) %>% 
+          left_join(indicators)
 
 wbranks <- wbinds %>%
             group_by(date, indicatorID) %>% 
             mutate(indrank = min_rank(-value)) %>%
             ungroup() %>% 
             group_by(iso3c, indicatorID) %>% 
-            filter(date == max(date))
+            filter(date == max(date)) %>% 
+            left_join(indicators)
 
+wbgrowth <- wbinds %>% 
+           arrange(iso3c, indicatorID, date) %>% 
+           group_by(iso3c, indicatorID) %>% 
+           mutate(growth = (value / lag(value) * 100) - 100) %>% 
+           filter(!is.na(growth)) %>% 
+           summarise(avggrowth = mean(growth),
+                      start = min(date),
+                      end = max(date)) %>% 
+           ungroup() %>%
+           group_by(indicatorID) %>%
+           mutate(quartile = ntile(avggrowth, 3)) %>% 
+           left_join(indicators)
 
 
 
@@ -231,7 +249,7 @@ Row {.tabset}
 ```{r}
 
 DT::renderDataTable({
-  
+
   datatable(comtradedata(), extensions = "Buttons", options = list(dom = "Blfrtip",
                                                                    buttons = c("csv"),
                                                                    lengthMenu = c(10, 25, 50, -1)))
@@ -406,6 +424,36 @@ fillCol(flex = c(3, 3, 6),
 renderPlot({
 x <- bumpchart(comtradedata(), top_n = 10)
   x
+})
+
+```
+
+### arrows
+
+``` {r}
+DT::renderDataTable({
+# ctry <- c("CHN")
+
+ctry <- countryref %>% 
+        filter(reporter_code == input$reporter) %>% 
+        select(reporter_iso) %>% 
+        as.character()
+
+d1 <- wbranks %>% 
+      filter(iso3c == ctry)
+
+d2 <- wbgrowth %>% 
+      filter(iso3c == ctry)
+
+
+d3 <- d1 %>% 
+      left_join(d2) %>% 
+      mutate(arrow = arrowimg(avggrowth, 0, 0.5)) %>% 
+      ungroup() %>% 
+      select(ind_short_text, value, indrank, avggrowth, arrow)
+
+datatable(d3, escape = FALSE)
+
 })
 
 ```

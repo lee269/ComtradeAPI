@@ -236,7 +236,7 @@ Requires: igraph
 Package: irlba
 Source: CRAN
 Version: 2.3.1
-Hash: d13f2ae16f48b5c92443f1fba02eb64b
+Hash: a05798c114abf2315883da1c4faa5ee4
 
 Package: jsonlite
 Source: CRAN
@@ -401,6 +401,12 @@ Package: sourcetools
 Source: CRAN
 Version: 0.1.6
 Hash: 226d56d7469587da40b0f96180e711b4
+
+Package: sparkline
+Source: CRAN
+Version: 2.0
+Hash: 180ff3414d20b647d826a5af8466f483
+Requires: htmltools, htmlwidgets
 
 Package: stringi
 Source: CRAN

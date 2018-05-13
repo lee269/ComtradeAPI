@@ -540,3 +540,14 @@ inddata <- wbinds %>%
 renderTable({ wbinds })
 
 ```
+
+
+### To do
+
+
+From [World Bank](http://databank.worldbank.org/data/reports.aspx?source=world-development-indicators)
+
+Burden of customs procedure, WEF (1=extremely inefficient to 7=extremely efficient)(IQ.WEF.CUST.XQ)
+Average time to clear exports through customs (days)(IC.CUS.DURS.EX)
+Ease of doing business index (1=most business-friendly regulations)(IC.BUS.EASE.XQ)
+
